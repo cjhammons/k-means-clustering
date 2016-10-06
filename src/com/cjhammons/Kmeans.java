@@ -29,7 +29,7 @@ import static jdk.nashorn.internal.runtime.regexp.joni.Syntax.Java;
 public class Kmeans extends JFrame{
 
     private static final int NUM_CLUSTERS = 3;
-    private static final double OFFSET_MARGIN = 0.5;
+    private static final double OFFSET_MARGIN = 0.05;
 
     private List<Point> allPoints = new ArrayList<>();
     List<Cluster> clusters = new ArrayList<>();
@@ -49,17 +49,8 @@ public class Kmeans extends JFrame{
         public Point(double _x, double _y) {
             x = _x;
             y = _y;
-//            isCentroid = false;
 
         }
-
-//        public boolean isCentroid() {
-//            return isCentroid;
-//        }
-//
-//        public void setCentroid(boolean centroid) {
-//            isCentroid = centroid;
-//        }
 
         public String toString() {
             return "(" + x + ", " + y + ")";
@@ -99,6 +90,7 @@ public class Kmeans extends JFrame{
                 cy += p.y;
             }
             centroid = new Point(cx / pointList.size(), cy / pointList.size());
+            System.out.println("Cluster " + cluserId + "'s centroid is now: " + centroid.toString());
         }
 
         /**
@@ -239,10 +231,28 @@ public class Kmeans extends JFrame{
             //If centroid did not change for all clusters, we have achieved convergence
             //and can end the algorithm.
             if (convergence) {
+                calculateDistortion();
                 plot();
                 return;
             }
         }
+    }
+
+    /**
+     * Calculates the distortion of the resulting clusters
+     * @return distortion value
+     */
+    double calculateDistortion() {
+        double result = 0;
+        for (Cluster clust : clusters) {
+            double sum = 0;
+            for (Point point : allPoints) {
+                sum += Math.pow(getDistance(point, clust.getCentroid()), 2);
+            }
+            result += sum;
+        }
+        System.out.println("Distortion is: " + result);
+        return result;
     }
 
     /**
