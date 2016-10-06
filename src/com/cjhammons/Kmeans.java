@@ -1,5 +1,15 @@
 package com.cjhammons;
 
+import de.erichseifert.gral.data.DataSeries;
+import de.erichseifert.gral.data.DataTable;
+import de.erichseifert.gral.plots.XYPlot;
+import de.erichseifert.gral.plots.points.DefaultPointRenderer2D;
+import de.erichseifert.gral.plots.points.PointRenderer;
+import de.erichseifert.gral.ui.InteractivePanel;
+
+import javax.swing.*;
+import javax.xml.crypto.Data;
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -8,15 +18,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static jdk.nashorn.internal.runtime.regexp.joni.Syntax.Java;
+
 /**
- * Class that holds the Kmeans implementation as well as all supporting methods
- * and data structures.
+ * Class that holds the Kmeans implementation as well as
+ * all supporting methods and data structures.
  *
  * Author: Curtis Hammons
  */
-public class Kmeans {
+public class Kmeans extends JFrame{
 
     private static final int NUM_CLUSTERS = 3;
+    private static final double OFFSET_MARGIN = 0.5;
+
     private List<Point> allPoints = new ArrayList<>();
     List<Cluster> clusters = new ArrayList<>();
 
@@ -58,6 +72,7 @@ public class Kmeans {
     public class Cluster {
         List<Point> pointList;
         Point centroid;
+        Point prevCentroid;
         int cluserId;
 
         /**
@@ -75,7 +90,7 @@ public class Kmeans {
          * Sets the local centroid variable to the result.
          */
         public void calculateCentroid() {
-//            centroid.setCentroid(false);
+            prevCentroid = centroid;
             double cx = 0;
             double cy = 0;
             for (int i = 0; i < pointList.size(); i++) {
@@ -84,9 +99,14 @@ public class Kmeans {
                 cy += p.y;
             }
             centroid = new Point(cx / pointList.size(), cy / pointList.size());
+        }
 
-            //had to comment this out because it was overloading intellij's console
-//            System.out.println("Cluster " + cluserId + "'s centroid is: " + centroid.toString());
+        /**
+         * Calculates the distance shifted between previous and current centroids.
+         * All it does is call getDistance(), in hindsight it was probably unnecessary.
+         */
+        public double calculateShift() {
+            return getDistance(centroid, prevCentroid);
         }
 
         public int getCluserId() {
@@ -140,14 +160,12 @@ public class Kmeans {
 
     /**
      * Calculates Euclidian distance between two points
-     * @param a
-     * @param b
+     * @param a point a
+     * @param b point b
      * @return distance
      */
     double getDistance(Point a, Point b) {
         //Distance formula in java form
-//        double xDist = Math.pow(a.x -  b.x, 2);
-//        double yDist = Math.pow(a.y - b.y, 2);
         return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
     }
 
@@ -178,9 +196,12 @@ public class Kmeans {
             }
         }
 
+        //Loop Forever until convergence is achieved
         int loopCount = 0;
         while (true) {
             System.out.println("Loop: " + loopCount++);
+
+            //Group all points into the cluster whose centroid they are closest to
             for (Point point : allPoints) {
                 //Get shortest distance to first cluster's centroid
                 double shortestDist = getDistance(point, clusters.get(0).getCentroid());
@@ -209,15 +230,76 @@ public class Kmeans {
                 Point curCentroid = clusters.get(i).getCentroid();
                 clusters.get(i).calculateCentroid();
                 //If centroid changed, we do not have convergence
-                if (curCentroid != clusters.get(i).getCentroid()){
+                double shift = clusters.get(i).calculateShift();
+                if (shift > OFFSET_MARGIN){
                     convergence = false;
                 }
             }
+
             //If centroid did not change for all clusters, we have achieved convergence
             //and can end the algorithm.
             if (convergence) {
+                plot();
                 return;
             }
         }
+    }
+
+    /**
+     * Creates a scatter plot of all the points with color coded clusters.
+     * This is hardcoded to 3 clusters, since that is what the assignment required.
+     *
+     * Requires GRAL java graphing library: http://trac.erichseifert.de/gral/
+     */
+    void plot() {
+        //...I am not pround of this code. May God forgive me.
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(600, 400);
+        List<DataTable> dataTables = new ArrayList<>();
+        List<DataSeries> dataSeries = new ArrayList<>();
+        //init plot with blank datatable
+        XYPlot plot = new XYPlot(new DataTable(double.class, double.class));
+        DataTable centroids = new DataTable(Double.class, Double.class);
+        for (int i = 0; i < NUM_CLUSTERS; i++) {
+            Point centroid = clusters.get(i).getCentroid();
+            centroids.add(centroid.x, centroid.y);
+            DataTable data = new DataTable(Double.class, Double.class);
+            for (Point point : clusters.get(i).pointList) {
+                data.add(point.x, point.y);
+            }
+            DataSeries series = new DataSeries("Series" + i, data, 0, 1);
+            dataTables.add(data);
+            dataSeries.add(series);
+            plot.add(series);
+        }
+        plot.add(centroids);
+        //Color the clusters the appropiate color.
+
+        for (int i = 0; i < 3; i++) {
+            PointRenderer renderer = new DefaultPointRenderer2D();
+            Color color;
+            switch (i) {
+                case 1:
+                    color = new Color(1.0f, 0.0f, 0.0f);
+                    break;
+                case 2:
+                    color = new Color(0.0f, 1.0f, 0.0f);
+                    break;
+                case 3:
+                default:
+                    color = new Color(0.0f, 0.5f, 1.0f);
+            }
+            renderer.setColor(color);
+            plot.setPointRenderers(dataSeries.get(i), renderer);
+        }
+
+        PointRenderer centroidRender = new DefaultPointRenderer2D();
+        centroidRender.setColor(new Color(0.0f, 0.0f, 0.0f));
+        plot.setPointRenderers(centroids, centroidRender);
+
+
+        getContentPane().add(new InteractivePanel(plot));
+        setVisible(true);
+
     }
 }
