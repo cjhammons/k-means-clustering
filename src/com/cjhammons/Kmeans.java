@@ -8,7 +8,6 @@ import de.erichseifert.gral.plots.points.PointRenderer;
 import de.erichseifert.gral.ui.InteractivePanel;
 
 import javax.swing.*;
-import javax.xml.crypto.Data;
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -18,8 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static jdk.nashorn.internal.runtime.regexp.joni.Syntax.Java;
-
 /**
  * Class that holds the Kmeans implementation as well as
  * all supporting methods and data structures.
@@ -28,18 +25,18 @@ import static jdk.nashorn.internal.runtime.regexp.joni.Syntax.Java;
  */
 public class Kmeans extends JFrame{
 
-    private static final int NUM_CLUSTERS = 3;
+    private static final int NUM_CLUSTERS = 2;
     private static final double OFFSET_MARGIN = 0.05;
 
     private List<Point> allPoints = new ArrayList<>();
     List<Cluster> clusters = new ArrayList<>();
+    int numCluster = 0;
 
     /**
      * Simple class that holds (x, y) coordinates
      */
     public class Point {
         double x, y;
-//        boolean isCentroid;
 
         /**
          * Constructor
@@ -64,16 +61,17 @@ public class Kmeans extends JFrame{
         List<Point> pointList;
         Point centroid;
         Point prevCentroid;
-        int cluserId;
+        int clusterId;
 
         /**
          * Constructor
          * @param _pointList List of points in the cluster
          */
-        public Cluster(List<Point> _pointList, int id) {
+        public Cluster(List<Point> _pointList) {
             pointList = _pointList;
+            clusterId = numCluster;
             calculateCentroid();
-            cluserId = id;
+            numCluster++;
         }
 
         /**
@@ -90,7 +88,7 @@ public class Kmeans extends JFrame{
                 cy += p.y;
             }
             centroid = new Point(cx / pointList.size(), cy / pointList.size());
-            System.out.println("Cluster " + cluserId + "'s centroid is now: " + centroid.toString());
+            System.out.println("Cluster " + clusterId + "'s centroid is now: " + centroid.toString());
         }
 
         /**
@@ -101,8 +99,8 @@ public class Kmeans extends JFrame{
             return getDistance(centroid, prevCentroid);
         }
 
-        public int getCluserId() {
-            return cluserId;
+        public int getClusterId() {
+            return clusterId;
         }
 
         public void addPoint(Point p){
@@ -130,13 +128,14 @@ public class Kmeans extends JFrame{
      * Reads points form the provided file and adds them to the master point list.
      */
      void readFile(){
-        String fileName = "A.txt";
+        String fileName = "B.txt";
         try {
             FileReader fileReader = new FileReader(fileName);
             BufferedReader reader = new BufferedReader(fileReader);
             String line = null;
             //Create points from the data in the file
             while ((line = reader.readLine()) != null) {
+                //Split at the space
                 String[] lineSplit = line.split("\\s+");
                 Point p = new Point(Double.parseDouble(lineSplit[0]), Double.parseDouble(lineSplit[1]));
                 allPoints.add(p);
@@ -179,7 +178,7 @@ public class Kmeans extends JFrame{
 //                p.setCentroid(true);
                 initCentroids.add(p);
                 System.out.println(p.toString() + " is initial centroid.");
-                Cluster clust = new Cluster(new ArrayList<>(), i);
+                Cluster clust = new Cluster(new ArrayList<>());
                 clust.addPoint(p);
                 clust.calculateCentroid();
                 clusters.add(clust);
@@ -262,7 +261,6 @@ public class Kmeans extends JFrame{
      * Requires GRAL java graphing library: http://trac.erichseifert.de/gral/
      */
     void plot() {
-        //...I am not pround of this code. May God forgive me.
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(600, 400);
         List<DataTable> dataTables = new ArrayList<>();
@@ -284,8 +282,8 @@ public class Kmeans extends JFrame{
         }
         plot.add(centroids);
         //Color the clusters the appropiate color.
-
-        for (int i = 0; i < 3; i++) {
+        //...I am not proud of this code. May God forgive me.
+        for (int i = 0; i < NUM_CLUSTERS; i++) {
             PointRenderer renderer = new DefaultPointRenderer2D();
             Color color;
             switch (i) {
@@ -293,9 +291,9 @@ public class Kmeans extends JFrame{
                     color = new Color(1.0f, 0.0f, 0.0f);
                     break;
                 case 2:
-                    color = new Color(0.0f, 1.0f, 0.0f);
-                    break;
-                case 3:
+//                    color = new Color(0.0f, 1.0f, 0.0f);
+//                    break;
+//                case 3:
                 default:
                     color = new Color(0.0f, 0.5f, 1.0f);
             }
